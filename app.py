@@ -21,14 +21,14 @@ from utils.Proxy import available_proxies,get_random_proxy
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+main = Flask(__name__)
 
 proxy_lock = Lock()
 
 def build_proxy_dict(proxy):
     return {
-        "http": f"socks5://{proxy['ip']}",
-        "https": f"socks5://{proxy['ip']}"
+        "http": f"http://{proxy['username']}:{proxy['password']}@{proxy['ip']}",
+        "https": f"https://{proxy['username']}:{proxy['password']}@{proxy['ip']}"
     }
 
 def process_request(action, url, *args, **kwargs):
@@ -55,7 +55,7 @@ def process_request(action, url, *args, **kwargs):
         return {"status": "error", "error": str(e)}
     
 
-@app.route("/", methods=['GET'])
+@main.route("/", methods=['GET'])
 def welcome():
     return requests.get(
     "https://ipv4.webshare.io/",
@@ -65,7 +65,7 @@ def welcome():
     }
     ).text
 
-@app.route('/download_video', methods=['GET'])
+@main.route('/download_video', methods=['GET'])
 def download_video_endpoint():
     url = request.args.get('url')
     if not url:
@@ -74,7 +74,7 @@ def download_video_endpoint():
     result = process_request(download_video, url)
     return jsonify(result)
 
-@app.route('/video_details', methods=['GET'])
+@main.route('/video_details', methods=['GET'])
 def video_details_endpoint():
     url = request.args.get('url')
     if not url:
@@ -83,7 +83,7 @@ def video_details_endpoint():
     result = process_request(video_details, url)
     return jsonify(result)
 
-@app.route('/video_resolution', methods=['GET'])
+@main.route('/video_resolution', methods=['GET'])
 def video_resolution_endpoint():
     url = request.args.get('url')
     resolution = request.args.get('resolution')
@@ -93,7 +93,7 @@ def video_resolution_endpoint():
     result = process_request(video_resolution, url, resolution)
     return jsonify(result)
 
-@app.route('/download_audio', methods=['GET'])
+@main.route('/download_audio', methods=['GET'])
 def download_audio_endpoint():
     url = request.args.get('url')
     mp3 = request.args.get('mp3', 'true').lower() == 'true'
@@ -103,7 +103,7 @@ def download_audio_endpoint():
     result = process_request(download_audio, url, mp3=mp3)
     return jsonify(result)
 
-@app.route('/download_subtitles', methods=['GET'])
+@main.route('/download_subtitles', methods=['GET'])
 def download_subtitles_endpoint():
     url = request.args.get('url')
     language_code = request.args.get('language_code', 'en')
@@ -114,7 +114,7 @@ def download_subtitles_endpoint():
     result = process_request(download_subtitles, url, language_code, filename)
     return jsonify(result)
 
-@app.route('/download_playlist', methods=['GET'])
+@main.route('/download_playlist', methods=['GET'])
 def download_playlist_endpoint():
     url = request.args.get('url')
     if not url:
@@ -123,7 +123,7 @@ def download_playlist_endpoint():
     result = process_request(download_playlist, url)
     return jsonify(result)
 
-@app.route('/search_video', methods=['GET'])
+@main.route('/search_video', methods=['GET'])
 def search_video_endpoint():
     query = request.args.get('query')
     if not query:
@@ -132,7 +132,7 @@ def search_video_endpoint():
     result = process_request(search_video, query)
     return jsonify(result)
 
-@app.route('/download_channel', methods=['GET'])
+@main.route('/download_channel', methods=['GET'])
 def download_channel_endpoint():
     url = request.args.get('url')
     if not url:
@@ -142,4 +142,4 @@ def download_channel_endpoint():
     return jsonify(result)
 
 if __name__ == '__main__':
-    app.run(debug=True,host = build_proxy_dict(proxy)[0])
+    main.run(debug=True)
