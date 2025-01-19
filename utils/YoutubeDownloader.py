@@ -1,16 +1,13 @@
-# utils/youtube_downloader.py
-
-import os
 import re
-import requests
 from pytubefix import YouTube
+import requests
 from utils.RateLimiter import RateLimiter
 from .video import Video
 
 class YouTubeDownloader:
-    def __init__(self, url):
+    def __init__(self, url ,proxies=None):
         self.url = url
-        self.yt = YouTube(url)
+        self.yt = YouTube(url, proxies=proxies)
         self.rate_limiter = RateLimiter(rate_per_second=1)
 
     def get_available_resolutions(self):
@@ -24,18 +21,12 @@ class YouTubeDownloader:
             self.rate_limiter.wait()
             details = Video(
                 title=self.yt.title,
-                description=self.yt.description,
                 thumbnail_url=self.yt.thumbnail_url,
                 base_url=self.url,
                 video_id=self.yt.video_id,
-                # video_url=self.yt.streams.get_highest_resolution().url,
                 duration=self.yt.length,
-                # views=self.yt.views,
-                # likes=self.yt.likes,
-                resolution=self.get_available_resolutions(),
                 upload_date=str(self.yt.publish_date.isoformat() if self.yt.publish_date else None),
-                # channel_url=self.yt.channel_url,
-                # channel_id=self.yt.channel_id
+                video_download_url= self.yt.streams.get_highest_resolution().url
             )
             return details.to_dict()
         except Exception as e:

@@ -1,4 +1,7 @@
+import asyncio
+from weakref import proxy
 from flask import Flask, request, jsonify
+import requests
 from script import (
     download_video,
     video_details,
@@ -9,88 +12,134 @@ from script import (
     search_video,
     download_channel
 )
+from threading import Thread, Lock
+from queue import Queue
+import logging
+from utils.Proxy import available_proxies,get_random_proxy
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-@app.route("/")
+proxy_lock = Lock()
+
+def build_proxy_dict(proxy):
+    return {
+        "http": f"socks5://{proxy['ip']}",
+        "https": f"socks5://{proxy['ip']}"
+    }
+
+def process_request(action, url, *args, **kwargs):
+    proxy = available_proxies.get()
+    proxy_dict = build_proxy_dict(proxy)
+    
+    try:
+        logger.info(f"Processing request for URL: {url} using proxy: {proxy['ip']}")
+
+        kwargs['proxies'] = proxy_dict
+        
+        if asyncio.iscoroutinefunction(action):
+            result = asyncio.run(action(url, *args, **kwargs))
+        else:
+            result = action(url, *args, **kwargs)
+
+        available_proxies.put(proxy)
+
+        return {"status": "success", "result": result}
+    except Exception as e:
+        logger.error(f"Error processing request for URL: {url} using proxy: {proxy['ip']} - {e}")
+        available_proxies.put(proxy)
+
+        return {"status": "error", "error": str(e)}
+    
+
+@app.route("/", methods=['GET'])
 def welcome():
-    return "Welcome to YouTube Downloader"
+    return requests.get(
+    "https://ipv4.webshare.io/",
+    proxies={
+        "http": "http://bchcorqb-rotate:iqvp6jozfsf9@p.webshare.io:80/",
+        "https": "http://bchcorqb-rotate:iqvp6jozfsf9@p.webshare.io:80/"
+    }
+    ).text
 
 @app.route('/download_video', methods=['GET'])
 def download_video_endpoint():
     url = request.args.get('url')
-    try:
-        video_path = download_video(url)
-        return jsonify({'status': 'success', 'video_path': video_path})
-    except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e)})
+    if not url:
+        return jsonify({'status': 'error', 'error': 'URL parameter is required'}), 400
+    
+    result = process_request(download_video, url)
+    return jsonify(result)
 
 @app.route('/video_details', methods=['GET'])
 def video_details_endpoint():
     url = request.args.get('url')
-    try:
-        details = video_details(url)
-        return jsonify({'status': 'success', 'details': details})
-    except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e)})
+    if not url:
+        return jsonify({'status': 'error', 'error': 'URL parameter is required'}), 400
+
+    result = process_request(video_details, url)
+    return jsonify(result)
 
 @app.route('/video_resolution', methods=['GET'])
 def video_resolution_endpoint():
     url = request.args.get('url')
     resolution = request.args.get('resolution')
-    try:
-        video_url = video_resolution(url, resolution)
-        return jsonify({'status': 'success', 'video_url': video_url})
-    except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e)})
+    if not url or not resolution:
+        return jsonify({'status': 'error', 'error': 'URL and resolution parameters are required'}), 400
+    
+    result = process_request(video_resolution, url, resolution)
+    return jsonify(result)
 
 @app.route('/download_audio', methods=['GET'])
 def download_audio_endpoint():
     url = request.args.get('url')
     mp3 = request.args.get('mp3', 'true').lower() == 'true'
-    try:
-        audio_path = download_audio(url, mp3=mp3)
-        return jsonify({'status': 'success', 'audio_path': audio_path})
-    except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e)})
+    if not url:
+        return jsonify({'status': 'error', 'error': 'URL parameter is required'}), 400
+
+    result = process_request(download_audio, url, mp3=mp3)
+    return jsonify(result)
 
 @app.route('/download_subtitles', methods=['GET'])
 def download_subtitles_endpoint():
     url = request.args.get('url')
     language_code = request.args.get('language_code', 'en')
     filename = request.args.get('filename', 'captions.txt')
-    try:
-        subtitle_path = download_subtitles(url, language_code, filename)
-        return jsonify({'status': 'success', 'subtitle_path': subtitle_path})
-    except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e)})
+    if not url:
+        return jsonify({'status': 'error', 'error': 'URL parameter is required'}), 400
+
+    result = process_request(download_subtitles, url, language_code, filename)
+    return jsonify(result)
 
 @app.route('/download_playlist', methods=['GET'])
 def download_playlist_endpoint():
     url = request.args.get('url')
-    try:
-        playlist_downloads = download_playlist(url)
-        return jsonify({'status': 'success', 'videos': playlist_downloads})
-    except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e)})
+    if not url:
+        return jsonify({'status': 'error', 'error': 'URL parameter is required'}), 400
+
+    result = process_request(download_playlist, url)
+    return jsonify(result)
 
 @app.route('/search_video', methods=['GET'])
 def search_video_endpoint():
     query = request.args.get('query')
-    try:
-        search_results = search_video(query)
-        return jsonify({'status': 'success', 'search_results': search_results})
-    except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e)})
+    if not query:
+        return jsonify({'status': 'error', 'error': 'Query parameter is required'}), 400
+
+    result = process_request(search_video, query)
+    return jsonify(result)
 
 @app.route('/download_channel', methods=['GET'])
 def download_channel_endpoint():
     url = request.args.get('url')
-    try:
-        channel_name, results = download_channel(url)
-        return jsonify({'status': 'success', 'channel_name': channel_name, 'results': results})
-    except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e)})
+    if not url:
+        return jsonify({'status': 'error', 'error': 'URL parameter is required'}), 400
+
+    result = process_request(download_channel, url)
+    return jsonify(result)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True,host = build_proxy_dict(proxy)[0])

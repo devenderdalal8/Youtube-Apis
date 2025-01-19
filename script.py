@@ -10,8 +10,8 @@ def download_video(url):
     downloader = YouTubeDownloader(url)
     return downloader.download_highest_resolution()
 
-def video_details(url):
-    downloader = YouTubeDownloader(url)
+def video_details(url , proxies=None):
+    downloader = YouTubeDownloader(url , proxies=proxies)
     return downloader.video_details()
 
 def video_resolution(url, resolution):
