@@ -1,12 +1,10 @@
 from pytubefix import Playlist
-from utils.RateLimiter import RateLimiter
 from utils.YoutubeDownloader import YouTubeDownloader
 from utils.video import Video
 
 class PlaylistDownloader:
     def __init__(self, url):
         self.playlist = Playlist(url)
-        self.rate_limiter = RateLimiter(rate_per_second=3)
 
     def download_audio(self, video_url, mp3=True):
         yt_downloader = YouTubeDownloader(video_url, cache=self.cache)

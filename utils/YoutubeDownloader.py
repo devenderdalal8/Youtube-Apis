@@ -1,24 +1,20 @@
 import re
 from pytubefix import YouTube
 import requests
-from utils.RateLimiter import RateLimiter
 from .video import Video
 
 class YouTubeDownloader:
     def __init__(self, url ,proxies=None):
         self.url = url
         self.yt = YouTube(url, proxies=proxies)
-        self.rate_limiter = RateLimiter(rate_per_second=1)
 
     def get_available_resolutions(self):
-        self.rate_limiter.wait()
         streams = self.yt.streams.filter()
         available_resolutions = {stream.resolution for stream in streams if stream.resolution is not None}
         return sorted(list(available_resolutions))
 
     def video_details(self):
-        try:
-            self.rate_limiter.wait()
+        try: 
             details = Video(
                 title=self.yt.title,
                 thumbnail_url=self.yt.thumbnail_url,
@@ -33,7 +29,6 @@ class YouTubeDownloader:
             return {'error': str(e)}
 
     def get_video_url_by_resolution(self, target_resolution):
-        self.rate_limiter.wait()
         try:
             streams = self.yt.streams.filter()
             selected_stream = next((stream for stream in streams if stream.resolution == target_resolution), None)
@@ -45,7 +40,7 @@ class YouTubeDownloader:
             return f"Error: {str(e)}"
 
     def download_with_progress(self, url, output_path, progress_callback=None):
-        self.rate_limiter.wait()
+        
         response = requests.get(url, stream=True)
         total_size = int(response.headers.get('content-length', 0))
         with open(output_path, 'wb') as file:
@@ -56,7 +51,6 @@ class YouTubeDownloader:
 
     def download_highest_resolution(self):
         try:
-            self.rate_limiter.wait()
             ys = self.yt.streams.get_highest_resolution()
             safe_title = self.sanitize_filename(self.yt.title)
             download_path = os.path.join("downloads", f"{safe_title}.mp4")
@@ -67,7 +61,6 @@ class YouTubeDownloader:
 
     def download_audio(self, mp3=True):
         try:
-            self.rate_limiter.wait()
             ys = self.yt.streams.get_audio_only()
             safe_title = self.sanitize_filename(self.yt.title)
             download_path = os.path.join("downloads", f"{safe_title}.mp3")
